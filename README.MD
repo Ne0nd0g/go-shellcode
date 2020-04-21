@@ -4,12 +4,35 @@
 
 The available Shellcode runners include:
 
+* [CreateProcess](#CreateProcess)
+* [CreateProcessWithPipe](#CreateProcessWithPipe)
 * [CreateRemoteThread](#CreateRemoteThred)
 * [CreateRemoteThreadNative](#CreateRemoteThreadNative)
 * [CreateThread](#CreateThread)
 * [CreateThreadNative](#CreateThreadNative)
 * [RtlCreateUserThread](#RtlCreateUserThread)
 * [Syscall](#Syscall)
+
+## CreateProcess
+
+This application leverages the Windows [CreateProcess](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw) function from `Kernel32.dll`. The process is created in a suspended state, the [AddressOfEntryPoint](https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_optional_header32) in the `IMAGE_OPTIONAL_HEADER` structure is updated to execute shellcode in the childprocess, and then the process is resumed. This is a type of process hollowing but the existing PE is **NOT** unmapped and the ThreadContext is **NOT** updated. The provided shellcode architecture (i.e. x86 or x64) must match the architecture of the child process.
+
+The application can be compiled wit the following command on Windows host from the project's root directory:
+
+`set GOOS=windows GOARCH=amd64;go build -o CreateProcess.exe .\cmd\CreateProcess\main.go`
+
+## CreateProcessWithPipe
+
+This application leverages the Windows [CreateProcess](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw) function from `Kernel32.dll`. The process is created in a suspended state, the [AddressOfEntryPoint](https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_optional_header32) in the `IMAGE_OPTIONAL_HEADER` structure is updated to execute shellcode in the childprocess, and then the process is resumed. This is a type of process hollowing but the existing PE is **NOT** unmapped and the ThreadContext is **NOT** updated. The provided shellcode architecture (i.e. x86 or x64) must match the architecture of the child process.
+
+This application differs from [CreateProcess](#CreateProcess) because it will collect any data written to **STDOUT** or **STDERR** in the child process and return it to the parent process. Data is collected by using the [CreatePipe](https://docs.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createpipe
+) function to create an anonymous pipe that the parent and child process communicate over. This is usefull when using tools like [Donut](https://github.com/TheWover/donut) to execute a .NET assembly in a child process as shellcode and to retrieve the output of the executed program. The following command can be used to generate position-independent shellcode to run [Seatbelt](https://github.com/GhostPack/Seatbelt) with Donut [v0.9.3](https://github.com/TheWover/donut/releases/tag/v0.9.3):
+
+`.\donut.exe -o donut_v0.9.3_Seatbelt.bin -x 2 -c Seatbelt.Program -m Main -p "ARPTable" Seatbelt.exe`
+
+The application can be compiled wit the following command on Windows host from the project's root directory:
+
+`set GOOS=windows GOARCH=amd64;go build -o CreateProcessWithPipe.exe .\cmd\CreateProcessWithPipe\main.go`
 
 ## CreateRemoteThread
 

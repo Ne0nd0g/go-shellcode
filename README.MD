@@ -119,7 +119,7 @@ PS C:\Users\bob> .\ShellcodeUtils.exe -i C:\Users\bob\calc.bin -o C:\Users\bob\c
 [-]No encryption type provided, continuing on...
 [+]Output (string):
 UFFSU1ZXVWpgWmhjYWxjVFlIg+woZUiLMkiLdhhIi3YQSK1IizBIi34wA1c8i1wXKIt0HyBIAf6LVB8kD7csF41SAq2BPAdXaW5Fde+LdB8cSAH+izSuSAH3mf/XSIPEMF1fXltaWVjD
-[+] encrypt input and wrote 140 bytes to: C:\Users\bpb\calc.b64.txt
+[+] encrypt input and wrote 140 bytes to: C:\Users\bob\calc.b64.txt
 ```
 
 Example XOR encrypting input file with a key of `Sh3!1z` AND base64 encoding the output:

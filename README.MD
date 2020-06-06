@@ -4,6 +4,7 @@
 
 The available Shellcode runners include:
 
+* [CreateFiber](#CreateFiber)
 * [CreateProcess](#CreateProcess)
 * [CreateProcessWithPipe](#CreateProcessWithPipe)
 * [CreateRemoteThread](#CreateRemoteThred)
@@ -15,11 +16,21 @@ The available Shellcode runners include:
 * [Syscall](#Syscall)
 * [Shellcode Utils](#ShellcodeUtils)
 
+## CreateFiber
+
+This application leverages the Windows [CreateFiber](https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createfiber) function from the `Kernel32.dll` to execute shellcode within this application's process. This is usefull when you want to avoid remote process injection and want to avoid calling `CreateThread`. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function.
+
+**NOTE:** I have not figured out way to have the process exit and you will have to manually terminate it.
+
+The application can be compiled with the following command on a Windows host from the project's root directory:
+
+`set GOOS=windows GOARCH=amd64;go build -o CreateFiber.exe .\cmd\CreateFiber\main.go`
+
 ## CreateProcess
 
 This application leverages the Windows [CreateProcess](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw) function from `Kernel32.dll`. The process is created in a suspended state, the [AddressOfEntryPoint](https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_optional_header32) in the `IMAGE_OPTIONAL_HEADER` structure is updated to execute shellcode in the childprocess, and then the process is resumed. This is a type of process hollowing but the existing PE is **NOT** unmapped and the ThreadContext is **NOT** updated. The provided shellcode architecture (i.e. x86 or x64) must match the architecture of the child process.
 
-The application can be compiled with the following command on Windows host from the project's root directory:
+The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o CreateProcess.exe .\cmd\CreateProcess\main.go`
 
@@ -32,7 +43,7 @@ This application differs from [CreateProcess](#CreateProcess) because it will co
 
 `.\donut.exe -o donut_v0.9.3_Seatbelt.bin -x 2 -c Seatbelt.Program -m Main -p "ARPTable" Seatbelt.exe`
 
-The application can be compiled with the following command on Windows host from the project's root directory:
+The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o CreateProcessWithPipe.exe .\cmd\CreateProcessWithPipe\main.go`
 
@@ -42,7 +53,7 @@ This application leverages the Windows [CreateRemoteThread](https://docs.microso
 
 `pid := flag.Int("pid", 0, "Process ID to inject shellcode into")`
 
-This application leverages functions from the `golang.org/x/sys/windows` package, where feasible, like the [`windows.OpenProcess()`](https://github.com/golang/sys/blob/a7d97aace0b0/windows/zsyscall_windows.go#L1197). The application can be compiled wit the following command on Windows host from the project's root directory:
+This application leverages functions from the `golang.org/x/sys/windows` package, where feasible, like the [`windows.OpenProcess()`](https://github.com/golang/sys/blob/a7d97aace0b0/windows/zsyscall_windows.go#L1197). The application can be compiled wit the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o CreateRemoteThread.exe .\cmd\CreateRemoteThread\main.go`
 
@@ -70,7 +81,7 @@ This application leverages the Windows [CreateThread](https://docs.microsoft.com
 
 ## EtwpCreateEtwThread
 
-This application leverages the Windows [EtwpCreateEtwThread](https://www.geoffchappell.com/studies/windows/win32/ntdll/api/etw/index.htm) function from `ntdll.dll` to execute shellcode within this application's process. Original work by [TheWover](https://gist.github.com/TheWover/b2b2e427d3a81659942f4e8b9a978dc3). This is usefull when you want to avoid remote process injection. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function. The application can be compiled with the following command on Windows host from the project's root directory:
+This application leverages the Windows [EtwpCreateEtwThread](https://www.geoffchappell.com/studies/windows/win32/ntdll/api/etw/index.htm) function from `ntdll.dll` to execute shellcode within this application's process. Original work by [TheWover](https://gist.github.com/TheWover/b2b2e427d3a81659942f4e8b9a978dc3). This is usefull when you want to avoid remote process injection. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function. The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o EtwpCreateEtwThread.exe .\cmd\EtwpCreateEtwThread\main.go`
 
@@ -80,13 +91,13 @@ This application leverages the Windows [RtlCreateUserThread](https://undocumente
 
 `pid := flag.Int("pid", 0, "Process ID to inject shellcode into")`
 
-This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function. The application can be compiled with the following command on Windows host from the project's root directory:
+This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function. The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o RtlCreateUserThread.exe .\cmd\RtlCreateUserThread\main.go`
 
 ## Syscall
 
-This application executes Shellcode in the current running proccess by making a Syscall on the Shellcode's entry point. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The application can be compiled with the following command on Windows host from the project's root directory:
+This application executes Shellcode in the current running proccess by making a Syscall on the Shellcode's entry point. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o Syscall.exe .\cmd\Syscall\main.go`
 
@@ -178,6 +189,6 @@ PS C:\Users\bob> .\ShellcodeUtils.exe -i C:\Users\bob\calc.aes.bin -o C:\Users\b
 [+]aes256 decrypt input and wrote 105 bytes to: C:\Users\bob\calc.aes.decrypted.bin
 ```
 
-The application can be compiled with the following command on Windows host from the project's root directory:
+The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o ShellcodeUtils.exe .\cmd\ShellcodeUtils\main.go`

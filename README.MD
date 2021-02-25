@@ -15,6 +15,7 @@ The available Shellcode runners include:
 * [RtlCreateUserThread](#RtlCreateUserThread)
 * [Syscall](#Syscall)
 * [Shellcode Utils](#ShellcodeUtils)
+* [UuidFromStringA](#UuidFromStringA)
 
 ## CreateFiber
 
@@ -100,6 +101,12 @@ This application **DOES NOT** leverage functions from the `golang.org/x/sys/wind
 This application executes Shellcode in the current running proccess by making a Syscall on the Shellcode's entry point. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o Syscall.exe .\cmd\Syscall\main.go`
+
+## UuidFromStringA
+
+This application leverages the Windows [UuidFromStringA](https://docs.microsoft.com/en-us/windows/win32/api/rpcdce/nf-rpcdce-uuidfromstringa) function to load shellcode to a memory address and then calls the [EnumSystemLocalesA](https://docs.microsoft.com/en-us/windows/win32/api/winnls/nf-winnls-enumsystemlocalesa) function to execute the shellcode. This method of loading and executing shellcode was derived from nccgroup's [RIFT: Analysing a Lazarus Shellcode Execution Method](https://research.nccgroup.com/2021/01/23/rift-analysing-a-lazarus-shellcode-execution-method/). For this application, memory is allocated on the heap and it does not use VirtualAlloc. The application can be compiled with the following command on a Windows host from the project's root directory:
+
+`set GOOS=windows GOARCH=amd64;go build -o UuidFromString.exe .\cmd\UuidFromString\main.go`
 
 ## ShellcodeUtils
 

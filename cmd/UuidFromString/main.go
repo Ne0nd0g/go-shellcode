@@ -10,6 +10,8 @@
 		4. Execute the shellcode by (ab)using the EnumSystemLocalesA function
 */
 
+// Reference: https://blog.securehat.co.uk/process-injection/shellcode-execution-via-enumsystemlocala
+
 package main
 
 import (

@@ -11,6 +11,7 @@ The available Shellcode runners include:
 * [CreateRemoteThreadNative](#CreateRemoteThreadNative)
 * [CreateThread](#CreateThread)
 * [CreateThreadNative](#CreateThreadNative)
+* [EarlyBird](#EarlyBird)
 * [EtwpCreateEtwThread](#EtwpCreateEtwThread)
 * [RtlCreateUserThread](#RtlCreateUserThread)
 * [Syscall](#Syscall)
@@ -79,6 +80,12 @@ This application leverages the Windows [CreateThread](https://docs.microsoft.com
 This application leverages the Windows [CreateThread](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread) function from the `Kernel32.dll` to execute shellcode within this application's process. This is usefull when you want to avoid remote process injection. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function. The application can be compiled with the following command on Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o CreateThreadNative.exe .\cmd\CreateThreadNative\main.go`
+
+## EarlyBird
+
+The application leverages the Windows [CreateProcess](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw) function to create a process in a suspended state. Once the child process is suspended, the Windows [QueueUserAPC](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-queueuserapc) function is used to add a UserAPC to the child process that points to the allocate shellcode. Next, [ResumeThread](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread) is called, which subsequently calls the undocumented [NtTestAlert](http://undocumented.ntinternals.net/) function that will execute the created UserAPC and in turn the shellcode. This is usefull because the shellcode will execute before AV/EDR can hook functions to support detection. Reference [New 'Early Bird' Code Injection Technique Discovered](https://www.cyberbit.com/blog/endpoint-security/new-early-bird-code-injection-technique-discovered/). The application can be compiled with the following command on Windows host from the project's root directory:
+
+`export GOOS=windows GOARCH=amd64;go build -o goEarlyBird.exe cmd/EarlyBird/main.go`
 
 ## EtwpCreateEtwThread
 

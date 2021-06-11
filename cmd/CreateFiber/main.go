@@ -67,7 +67,7 @@ func main() {
 	SwitchToFiber := kernel32.NewProc("SwitchToFiber")
 
 	if *debug {
-		fmt.Println("[DEBUG]Calling VirtualAlloc for shellcode")
+		fmt.Println("[DEBUG]Calling ConvertThreadToFiber...")
 	}
 
 	fiberAddr, _, errConvertFiber := ConvertThreadToFiber.Call()
@@ -159,7 +159,6 @@ func main() {
 	if errSwitchToFiber2 != nil && errSwitchToFiber2.Error() != "The operation completed successfully." {
 		log.Fatal(fmt.Sprintf("[!]Error calling SwitchToFiber:\r\n%s", errSwitchToFiber2.Error()))
 	}
-	fmt.Println("[DEBUG]I AM HERE")
 }
 
 // export GOOS=windows GOARCH=amd64;go build -o goCreateFiberNative.exe cmd/CreateFiber/main.go

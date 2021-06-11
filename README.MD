@@ -13,6 +13,7 @@ The available Shellcode runners include:
 * [CreateThreadNative](#CreateThreadNative)
 * [EarlyBird](#EarlyBird)
 * [EtwpCreateEtwThread](#EtwpCreateEtwThread)
+* [NtQueueApcThreadEx (local)](#NtQueueApcThreadEx-(local))
 * [RtlCreateUserThread](#RtlCreateUserThread)
 * [Syscall](#Syscall)
 * [Shellcode Utils](#ShellcodeUtils)
@@ -85,13 +86,19 @@ This application leverages the Windows [CreateThread](https://docs.microsoft.com
 
 The application leverages the Windows [CreateProcess](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw) function to create a process in a suspended state. Once the child process is suspended, the Windows [QueueUserAPC](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-queueuserapc) function is used to add a UserAPC to the child process that points to the allocate shellcode. Next, [ResumeThread](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread) is called, which subsequently calls the undocumented [NtTestAlert](http://undocumented.ntinternals.net/) function that will execute the created UserAPC and in turn the shellcode. This is usefull because the shellcode will execute before AV/EDR can hook functions to support detection. Reference [New 'Early Bird' Code Injection Technique Discovered](https://www.cyberbit.com/blog/endpoint-security/new-early-bird-code-injection-technique-discovered/). The application can be compiled with the following command on Windows host from the project's root directory:
 
-`export GOOS=windows GOARCH=amd64;go build -o goEarlyBird.exe cmd/EarlyBird/main.go`
+`export GOOS=windows GOARCH=amd64;go build -o goEarlyBird.exe cmd\EarlyBird\main.go`
 
 ## EtwpCreateEtwThread
 
 This application leverages the Windows [EtwpCreateEtwThread](https://www.geoffchappell.com/studies/windows/win32/ntdll/api/etw/index.htm) function from `ntdll.dll` to execute shellcode within this application's process. Original work by [TheWover](https://gist.github.com/TheWover/b2b2e427d3a81659942f4e8b9a978dc3). This is usefull when you want to avoid remote process injection. This application **DOES NOT** leverage functions from the `golang.org/x/sys/windows` package. The most significant difference is that this application loads all the necessary DLLs and Procedures itself and uses the procedure's Call() function. The application can be compiled with the following command on a Windows host from the project's root directory:
 
 `set GOOS=windows GOARCH=amd64;go build -o EtwpCreateEtwThread.exe .\cmd\EtwpCreateEtwThread\main.go`
+
+## NtQueueApcThreadEx (local)
+
+This application uses the undocumented [NtQueueApcThreadEx](https://docs.rs/ntapi/0.3.1/ntapi/ntpsapi/fn.NtQueueApcThreadEx.html) to create a "Special User APC" in the current thread of the current process to execute shellcode. Because the shellcode is loaded and executed in the current process, it is "local". This same technique can be used for a remote process. *NOTE:* This will only work on Windows 7 or later. Reference [APC Series: User APC API](https://repnz.github.io/posts/apc/user-apc/).
+
+`export GOOS=windows GOARCH=amd64;go build -o goNtQueueApcThreadEx-Local.exe cmd\NtQueueApcThreadEx-Local\main.go`
 
 ## RtlCreateUserThread
 
